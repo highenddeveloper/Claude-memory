@@ -1,0 +1,51 @@
+{
+  "name": "ai-dashboard-extension",
+  "displayName": "AI Dashboard",
+  "description": "Dashboard UI for the AI agent platform",
+  "version": "0.1.0",
+  "publisher": "ai-dashboard",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": ["onCommand:aiDashboard.open"],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "aiDashboard.open",
+        "title": "AI Dashboard: Open"
+      },
+      {
+        "command": "aiDashboard.runAgent",
+        "title": "AI Dashboard: Run Agent"
+      },
+      {
+        "command": "aiDashboard.health",
+        "title": "AI Dashboard: Check Health"
+      }
+    ],
+    "configuration": {
+      "title": "AI Dashboard",
+      "properties": {
+        "aiDashboard.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:3001",
+          "description": "Backend API URL"
+        },
+        "aiDashboard.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "API key for authentication"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "echo 'ready'",
+    "package": "npx @vscode/vsce package"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0"
+  }
+}

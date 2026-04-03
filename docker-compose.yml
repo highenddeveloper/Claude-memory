@@ -1,0 +1,298 @@
+version: "3.8"
+
+# ============================================================
+# AI Dashboard Platform — Single Docker Compose Deployment
+# All services on internal network. Only backend exposed.
+# ============================================================
+
+networks:
+  ai-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  valkey-data:
+  qdrant-data:
+  n8n-data:
+  searxng-data:
+  embedding-models:
+
+services:
+  # ─────────────────────────────────────────────
+  # Backend API — The only externally exposed service
+  # ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    environment:
+      - NODE_ENV=${NODE_ENV:-production}
+      - PORT=3001
+      - API_KEY=${API_KEY}
+      - SEARXNG_URL=http://searxng:8080
+      - BROWSERLESS_URL=http://browserless:3000
+      - BROWSERLESS_TOKEN=${BROWSERLESS_TOKEN:-browserless-token}
+      - POSTGRES_URL=postgres://${POSTGRES_USER:-ai}:${POSTGRES_PASSWORD:-ai}@postgres:5432/${POSTGRES_DB:-ai}
+      - REDIS_URL=redis://valkey:6379
+      - QDRANT_URL=http://qdrant:6333
+      - EMBEDDING_URL=http://embedding:8000
+      - MONITOR_URL=http://monitor:8001
+      - N8N_URL=http://n8n:5678
+      - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - AGENT_MAX_CONCURRENCY=${AGENT_MAX_CONCURRENCY:-3}
+      - AGENT_TIMEOUT_MS=${AGENT_TIMEOUT_MS:-300000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      searxng:
+        condition: service_started
+      browserless:
+        condition: service_started
+      embedding:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # ─────────────────────────────────────────────
+  # SearXNG — Privacy-respecting metasearch engine
+  # ─────────────────────────────────────────────
+  searxng:
+    image: searxng/searxng:2024.12.23-e3a3d3780
+    container_name: ai-searxng
+    restart: unless-stopped
+    volumes:
+      - searxng-data:/etc/searxng
+      - ./config/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./config/searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+      - SEARXNG_SECRET=${SEARXNG_SECRET:-changeme-searxng-secret}
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+    # NOT exposed to host — only accessible via ai-net
+
+  # ─────────────────────────────────────────────
+  # Browserless — Headless Chrome as a service
+  # ─────────────────────────────────────────────
+  browserless:
+    image: ghcr.io/browserless/chromium:v2.18.0
+    container_name: ai-browserless
+    restart: unless-stopped
+    environment:
+      - TOKEN=${BROWSERLESS_TOKEN:-browserless-token}
+      - CONCURRENT=5
+      - QUEUED=10
+      - TIMEOUT=60000
+      - HEALTH=true
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    # NOT exposed to host
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL — Persistent storage for memory + tasks
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16.4-alpine
+    container_name: ai-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-ai}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-ai}
+      - POSTGRES_DB=${POSTGRES_DB:-ai}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./backend/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ai} -d ${POSTGRES_DB:-ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # NOT exposed to host
+
+  # ─────────────────────────────────────────────
+  # Valkey — Redis-compatible cache (open source fork)
+  # ─────────────────────────────────────────────
+  valkey:
+    image: valkey/valkey:8.0-alpine
+    container_name: ai-valkey
+    restart: unless-stopped
+    command: >
+      valkey-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save 60 1000
+      --appendonly yes
+    volumes:
+      - valkey-data:/data
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 300M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    # NOT exposed to host
+
+  # ─────────────────────────────────────────────
+  # Qdrant — Vector database for semantic memory
+  # ─────────────────────────────────────────────
+  qdrant:
+    image: qdrant/qdrant:v1.12.5
+    container_name: ai-qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__HTTP_PORT=6333
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    # NOT exposed to host
+
+  # ─────────────────────────────────────────────
+  # n8n — Workflow automation engine (open source)
+  # ─────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:1.73.1
+    container_name: ai-n8n
+    restart: unless-stopped
+    environment:
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=${N8N_EXTERNAL_URL:-http://localhost:5678}
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-admin}
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${POSTGRES_DB:-ai}
+      - DB_POSTGRESDB_USER=${POSTGRES_USER:-ai}
+      - DB_POSTGRESDB_PASSWORD=${POSTGRES_PASSWORD:-ai}
+    ports:
+      - "${N8N_PORT:-5678}:5678"  # Exposed for webhook access
+    volumes:
+      - n8n-data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ai-net
+
+  # ─────────────────────────────────────────────
+  # Embedding Server (Rust) — Local ONNX inference
+  # sentence-transformers/all-MiniLM-L6-v2, 384-dim
+  # ─────────────────────────────────────────────
+  embedding:
+    build:
+      context: ./services/embedding
+      dockerfile: Dockerfile
+    container_name: ai-embedding
+    restart: unless-stopped
+    volumes:
+      - embedding-models:/models
+    environment:
+      - MODEL_DIR=/models
+      - PORT=8000
+      - RUST_LOG=info
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    # NOT exposed to host — only accessible via ai-net
+
+  # ─────────────────────────────────────────────
+  # Health Monitor (Go) — Polls all services
+  # ─────────────────────────────────────────────
+  monitor:
+    build:
+      context: ./services/monitor
+      dockerfile: Dockerfile
+    container_name: ai-monitor
+    restart: unless-stopped
+    environment:
+      - PORT=8001
+      - POLL_INTERVAL=30s
+      - BACKEND_URL=http://backend:3001
+      - SEARXNG_URL=http://searxng:8080
+      - BROWSERLESS_URL=http://browserless:3000
+      - QDRANT_URL=http://qdrant:6333
+      - EMBEDDING_URL=http://embedding:8000
+      - N8N_URL=http://n8n:5678
+    depends_on:
+      - backend
+    networks:
+      - ai-net
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: '0.25'
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    # NOT exposed to host — only accessible via ai-net

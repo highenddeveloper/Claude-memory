@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "ai-dashboard": {
+      "command": "node",
+      "args": ["backend/mcp/server.js"],
+      "env": {
+        "BACKEND_URL": "http://localhost:3001",
+        "API_KEY": ""
+      }
+    }
+  }
+}

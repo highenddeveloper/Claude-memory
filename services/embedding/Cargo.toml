@@ -1,0 +1,26 @@
+[package]
+name = "embedding-server"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance ONNX embedding server for semantic memory"
+
+[[bin]]
+name = "embedding-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ort = { version = "2.0", features = ["load-dynamic"] }
+tokenizers = "0.20"
+ndarray = "0.16"
+tower-http = { version = "0.6", features = ["cors"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+strip = true
