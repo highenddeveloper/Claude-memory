@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
   }
 
   // Qdrant
-  checks.qdrant = await checkService(`${config.qdrant.url}/healthz`);
+  checks.qdrant = await checkService(`${config.qdrant.url}/readyz`);
 
   // Rust embedding server
   checks.embedding = (await embeddingHealth()) ? 'ok' : 'error';
