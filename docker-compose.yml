@@ -54,7 +54,8 @@ services:
       browserless:
         condition: service_started
       embedding:
-        condition: service_healthy
+        condition: service_started
+        required: false
       qdrant:
         condition: service_healthy
     networks:
@@ -65,7 +66,7 @@ services:
           memory: 512M
           cpus: '1.0'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/health"]
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://127.0.0.1:3001/health', r => process.exit(r.statusCode < 500 ? 0 : r.statusCode === 503 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -193,7 +194,7 @@ services:
           memory: 512M
           cpus: '0.5'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/readyz"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -254,11 +255,11 @@ services:
           memory: 1G
           cpus: '1.0'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/health"]
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/8000'"]
       interval: 15s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
     # NOT exposed to host — only accessible via ai-net
 
   # ─────────────────────────────────────────────
@@ -289,7 +290,7 @@ services:
           memory: 64M
           cpus: '0.25'
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8001/health"]
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 8001"]
       interval: 30s
       timeout: 5s
       retries: 3

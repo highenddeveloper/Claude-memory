@@ -13,6 +13,7 @@ import browseRoutes from './routes/browse.js';
 import memoryRoutes from './routes/memory.js';
 import agentRoutes from './routes/agent.js';
 import workflowRoutes from './routes/workflow.js';
+import dashboardRoutes from './routes/dashboard.js';
 import { initPostgres, getPool } from './services/postgres.js';
 import { initValkey, getClient } from './services/valkey.js';
 
@@ -21,13 +22,16 @@ const logger = pino({ level: config.logLevel });
 const app = express();
 
 // --- Security ---
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline scripts for dashboard
+}));
 app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
 app.use(express.json({ limit: '1mb' }));
 app.use(pinoHttp({ logger }));
 
-// --- Health (no auth) ---
+// --- Health + Dashboard (no auth) ---
 app.use('/health', healthRoutes);
+app.use('/dashboard', dashboardRoutes);
 
 // --- Rate limit + Auth for all other routes ---
 app.use(createRateLimiter());

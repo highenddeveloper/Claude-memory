@@ -10,7 +10,7 @@ function isDockerInternal(ip) {
   if (!ip) return false;
   // Normalize IPv6-mapped IPv4
   const addr = ip.replace(/^::ffff:/, '');
-  if (addr === '127.0.0.1') return true;
+  if (addr === '127.0.0.1' || addr === '::1') return true;
   for (const cidr of DOCKER_CIDRS) {
     if (addr.startsWith(cidr.prefix)) {
       const second = parseInt(addr.split('.')[1], 10);

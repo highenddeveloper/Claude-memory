@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Dashboard</title>
+  <style>
+    :root {
+      --bg: #1e1e2e;
+      --fg: #cdd6f4;
+      --border: #45475a;
+      --input-bg: #313244;
+      --input-fg: #cdd6f4;
+      --btn-bg: #89b4fa;
+      --btn-fg: #1e1e2e;
+      --btn-hover: #74c7ec;
+      --btn-sec-bg: #45475a;
+      --btn-sec-fg: #cdd6f4;
+      --focus: #89b4fa;
+      --quote-bg: #313244;
+      --hover-bg: #313244;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: var(--font); padding: 20px; color: var(--fg); background: var(--bg); line-height: 1.5; }
+    h1 { font-size: 1.5em; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+    .tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+    .tab { padding: 8px 16px; cursor: pointer; border: none; background: transparent; color: var(--fg); font-size: 13px; opacity: 0.7; border-bottom: 2px solid transparent; }
+    .tab:hover { opacity: 1; }
+    .tab.active { opacity: 1; border-bottom-color: var(--focus); }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .section { margin-bottom: 24px; }
+    .section h2 { font-size: 1.1em; margin-bottom: 10px; }
+    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    input, select, button, textarea { font-family: inherit; font-size: 13px; padding: 6px 12px; border-radius: 4px; border: 1px solid var(--border); background: var(--input-bg); color: var(--input-fg); }
+    button { background: var(--btn-bg); color: var(--btn-fg); border: none; cursor: pointer; white-space: nowrap; }
+    button:hover { background: var(--btn-hover); }
+    button.secondary { background: var(--btn-sec-bg); color: var(--btn-sec-fg); }
+    input, textarea { width: 100%; }
+    select { min-width: 140px; }
+    pre { background: var(--quote-bg); padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; margin-top: 8px; color: var(--fg); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge.ok, .badge.completed { background: #2ea04333; color: #2ea043; }
+    .badge.healthy { background: #2ea04333; color: #2ea043; }
+    .badge.error, .badge.failed { background: #f8514933; color: #f85149; }
+    .badge.pending, .badge.planning { background: #848d9733; color: #848d97; }
+    .badge.executing { background: #a371f733; color: #a371f7; }
+    .badge.degraded { background: #d29922aa; color: #d29922; }
+    .task-list { list-style: none; }
+    .task-item { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+    .task-item:hover { background: var(--hover-bg); }
+    .task-meta { font-size: 11px; opacity: 0.7; }
+    .loader { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--fg); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty { opacity: 0.5; font-style: italic; padding: 12px; }
+    .connection-status { font-size: 12px; margin-left: auto; }
+  </style>
+</head>
+<body>
+  <h1>
+    AI Dashboard
+    <span class="connection-status" id="connectionStatus">
+      <span class="badge pending">Connecting...</span>
+    </span>
+  </h1>
+
+  <div class="tabs">
+    <button class="tab active" data-panel="agents" data-testid="tab-agents">Agents</button>
+    <button class="tab" data-panel="search" data-testid="tab-search">Search</button>
+    <button class="tab" data-panel="browse" data-testid="tab-browse">Browse</button>
+    <button class="tab" data-panel="memory" data-testid="tab-memory">Memory</button>
+    <button class="tab" data-panel="system" data-testid="tab-system">System</button>
+  </div>
+
+  <!-- Agents Panel -->
+  <div id="agents" class="panel active" data-testid="panel-agents">
+    <div class="section">
+      <h2>Run Agent</h2>
+      <div class="row">
+        <select id="agentType" data-testid="agent-type">
+          <option value="research">Research</option>
+          <option value="monitor">Monitor</option>
+          <option value="automation">Automation</option>
+          <option value="memory">Memory</option>
+        </select>
+        <input id="agentInput" placeholder="Task description..." style="flex:1" data-testid="agent-input" />
+        <button id="agentBtn" data-testid="agent-run-btn">Run</button>
+      </div>
+      <pre id="agentResult" style="display:none" data-testid="agent-result"></pre>
+    </div>
+    <div class="section">
+      <h2>Recent Tasks <button class="secondary" id="refreshTasks" style="font-size:11px;padding:3px 8px;" data-testid="refresh-tasks-btn">Refresh</button></h2>
+      <ul class="task-list" id="taskList" data-testid="task-list"><li class="empty">Click Refresh to load tasks</li></ul>
+    </div>
+    <pre id="taskDetail" style="display:none" data-testid="task-detail"></pre>
+  </div>
+
+  <!-- Search Panel -->
+  <div id="search" class="panel" data-testid="panel-search">
+    <div class="section">
+      <h2>Web Search</h2>
+      <div class="row">
+        <input id="searchInput" placeholder="Search query..." style="flex:1" data-testid="search-input" />
+        <button id="searchBtn" data-testid="search-btn">Search</button>
+      </div>
+      <pre id="searchResult" style="display:none" data-testid="search-result"></pre>
+    </div>
+  </div>
+
+  <!-- Browse Panel -->
+  <div id="browse" class="panel" data-testid="panel-browse">
+    <div class="section">
+      <h2>Browse URL</h2>
+      <div class="row">
+        <input id="browseInput" placeholder="https://example.com" style="flex:1" data-testid="browse-input" />
+        <button id="browseBtn" data-testid="browse-btn">Browse</button>
+      </div>
+      <pre id="browseResult" style="display:none" data-testid="browse-result"></pre>
+    </div>
+  </div>
+
+  <!-- Memory Panel -->
+  <div id="memory" class="panel" data-testid="panel-memory">
+    <div class="section">
+      <h2>Search Memory</h2>
+      <div class="row">
+        <input id="memoryInput" placeholder="Search stored memories..." style="flex:1" data-testid="memory-input" />
+        <button id="memoryBtn" data-testid="memory-btn">Search</button>
+      </div>
+      <pre id="memoryResult" style="display:none" data-testid="memory-result"></pre>
+    </div>
+  </div>
+
+  <!-- System Panel -->
+  <div id="system" class="panel" data-testid="panel-system">
+    <div class="section">
+      <h2>Health Check</h2>
+      <button id="healthBtn" data-testid="health-btn">Check Health</button>
+      <div id="healthResult" style="margin-top:8px" data-testid="health-result"></div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.origin.includes('file://') 
+      ? 'http://localhost:3001' 
+      : (window.API_BASE || 'http://localhost:3001');
+    const API_KEY = window.API_KEY || '';
+
+    async function apiFetch(path, options = {}) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (API_KEY) headers['X-API-Key'] = API_KEY;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const res = await fetch(`${API_BASE}${path}`, {
+          headers,
+          signal: controller.signal,
+          ...options,
+        });
+        clearTimeout(timeout);
+        return res.json();
+      } catch (err) {
+        return { success: false, error: err.name === 'AbortError' ? 'Request timed out' : err.message };
+      }
+    }
+
+    // Connection check
+    async function checkConnection() {
+      const el = document.getElementById('connectionStatus');
+      try {
+        const data = await apiFetch('/health');
+        if (data.success) {
+          el.innerHTML = '<span class="badge ok">Connected</span>';
+        } else {
+          el.innerHTML = '<span class="badge degraded">Degraded</span>';
+        }
+      } catch {
+        el.innerHTML = '<span class="badge error">Disconnected</span>';
+      }
+    }
+    checkConnection();
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.panel).classList.add('active');
+      });
+    });
+
+    function showResult(el, data) {
+      el.style.display = 'block';
+      el.textContent = JSON.stringify(data, null, 2);
+    }
+
+    // Agents
+    document.getElementById('agentBtn').addEventListener('click', async () => {
+      const type = document.getElementById('agentType').value;
+      const input = document.getElementById('agentInput').value.trim();
+      if (!input) return;
+      const el = document.getElementById('agentResult');
+      el.style.display = 'block';
+      el.innerHTML = '<span class="loader"></span> Running...';
+      const data = await apiFetch('/agent/run', {
+        method: 'POST',
+        body: JSON.stringify({ type, input }),
+      });
+      showResult(el, data);
+    });
+
+    document.getElementById('refreshTasks').addEventListener('click', async () => {
+      const data = await apiFetch('/agent/tasks?limit=20');
+      renderTasks(data);
+    });
+
+    function renderTasks(data) {
+      const list = document.getElementById('taskList');
+      if (data.success && data.data?.length) {
+        list.innerHTML = data.data.map(t =>
+          '<li class="task-item" data-id="' + t.id + '">'
+          + '<div><span class="badge ' + t.status + '">' + t.status + '</span> '
+          + '<strong>' + t.type + '</strong></div>'
+          + '<span class="task-meta">' + new Date(t.created_at).toLocaleString() + '</span>'
+          + '</li>'
+        ).join('');
+        list.querySelectorAll('.task-item').forEach(item => {
+          item.addEventListener('click', async () => {
+            const data = await apiFetch(`/agent/status/${item.dataset.id}`);
+            showResult(document.getElementById('taskDetail'), data);
+          });
+        });
+      } else {
+        list.innerHTML = '<li class="empty">No tasks found</li>';
+      }
+    }
+
+    // Search
+    document.getElementById('searchBtn').addEventListener('click', async () => {
+      const q = document.getElementById('searchInput').value.trim();
+      if (!q) return;
+      const el = document.getElementById('searchResult');
+      el.style.display = 'block';
+      el.innerHTML = '<span class="loader"></span> Searching...';
+      const data = await apiFetch('/search', {
+        method: 'POST',
+        body: JSON.stringify({ query: q }),
+      });
+      if (data.success && data.data?.results) {
+        const items = data.data.results.map(r =>
+          '\u2022 ' + r.title + '\n  ' + r.url + '\n  ' + (r.snippet || '').slice(0, 120)
+        ).join('\n\n');
+        el.style.display = 'block';
+        el.textContent = items || 'No results found';
+      } else {
+        showResult(el, data);
+      }
+    });
+
+    // Browse
+    document.getElementById('browseBtn').addEventListener('click', async () => {
+      const url = document.getElementById('browseInput').value.trim();
+      if (!url) return;
+      const el = document.getElementById('browseResult');
+      el.style.display = 'block';
+      el.innerHTML = '<span class="loader"></span> Browsing...';
+      const data = await apiFetch('/browse', {
+        method: 'POST',
+        body: JSON.stringify({ url }),
+      });
+      if (data.success && data.data?.text) {
+        el.style.display = 'block';
+        el.textContent = data.data.text.slice(0, 10000);
+      } else {
+        showResult(el, data);
+      }
+    });
+
+    // Memory
+    document.getElementById('memoryBtn').addEventListener('click', async () => {
+      const q = document.getElementById('memoryInput').value.trim();
+      if (!q) return;
+      const el = document.getElementById('memoryResult');
+      el.style.display = 'block';
+      el.innerHTML = '<span class="loader"></span> Searching memory...';
+      const data = await apiFetch(`/memory/search?q=${encodeURIComponent(q)}`);
+      showResult(el, data);
+    });
+
+    // Health
+    document.getElementById('healthBtn').addEventListener('click', async () => {
+      const data = await apiFetch('/health');
+      const el = document.getElementById('healthResult');
+      if (data.data && data.data.checks) {
+        const checks = Object.entries(data.data.checks)
+          .map(([k, v]) => k + ': <span class="badge ' + v + '">' + v + '</span>')
+          .join(' &nbsp; ');
+        el.innerHTML = '<span class="badge ' + data.data.status + '">'
+          + data.data.status + '</span> &nbsp; ' + checks
+          + '<br><span class="task-meta">Uptime: ' + Math.round(data.data.uptime) + 's</span>';
+      } else {
+        el.innerHTML = '<span class="badge error">Error</span> ' + (data.error || '');
+      }
+    });
+  </script>
+</body>
+</html>

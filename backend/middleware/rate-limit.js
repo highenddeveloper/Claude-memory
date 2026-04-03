@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 function isDockerInternal(ip) {
   if (!ip) return false;
   const addr = ip.replace(/^::ffff:/, '');
-  if (addr === '127.0.0.1') return true;
+  if (addr === '127.0.0.1' || addr === '::1') return true;
   if (addr.startsWith('172.')) {
     const second = parseInt(addr.split('.')[1], 10);
     return second >= 16 && second <= 31;

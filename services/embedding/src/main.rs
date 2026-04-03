@@ -4,11 +4,12 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use ndarray::Array2;
-use ort::{GraphOptimizationLevel, Session};
+use ort::session::{builder::GraphOptimizationLevel, Session};
+use ort::value::Tensor;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokenizers::Tokenizer;
+use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 use tracing::info;
 
@@ -17,7 +18,7 @@ const MAX_SEQ_LEN: usize = 128;
 const MAX_BATCH: usize = 64;
 
 struct AppState {
-    session: Session,
+    session: Mutex<Session>,
     tokenizer: Tokenizer,
 }
 
@@ -108,34 +109,34 @@ async fn embed(
         }
     }
 
-    // Reshape into ndarray for ONNX Runtime
-    let ids_arr =
-        Array2::from_shape_vec((batch_size, seq_len), input_ids).map_err(|e| internal_err(e))?;
-    let mask_arr = Array2::from_shape_vec((batch_size, seq_len), attn_mask.clone())
+    // Create ort Tensors using (shape, vec) tuple pattern
+    let ids_tensor = Tensor::from_array(([batch_size, seq_len], input_ids))
         .map_err(|e| internal_err(e))?;
-    let types_arr =
-        Array2::from_shape_vec((batch_size, seq_len), type_ids).map_err(|e| internal_err(e))?;
+    let mask_tensor = Tensor::from_array(([batch_size, seq_len], attn_mask.clone()))
+        .map_err(|e| internal_err(e))?;
+    let types_tensor = Tensor::from_array(([batch_size, seq_len], type_ids))
+        .map_err(|e| internal_err(e))?;
 
-    // Run ONNX inference
-    let outputs = state
-        .session
-        .run(
-            ort::inputs![
-                "input_ids" => ids_arr,
-                "attention_mask" => mask_arr,
-                "token_type_ids" => types_arr,
-            ]
-            .map_err(|e| internal_err(e))?,
-        )
-        .map_err(|e| internal_err(format!("Inference error: {}", e)))?;
+    // Run ONNX inference and extract results within lock scope
+    let h_data: Vec<f32>;
+    {
+        let mut session = state.session.lock().await;
+        let outputs = session
+            .run(
+                ort::inputs![
+                    "input_ids" => ids_tensor,
+                    "attention_mask" => mask_tensor,
+                    "token_type_ids" => types_tensor,
+                ],
+            )
+            .map_err(|e| internal_err(format!("Inference error: {}", e)))?;
 
-    // Extract hidden states tensor — shape [batch, seq_len, 384]
-    let hidden = outputs[0]
-        .try_extract_tensor::<f32>()
-        .map_err(|e| internal_err(format!("Output extraction error: {}", e)))?;
-    let h = hidden
-        .as_slice()
-        .ok_or_else(|| internal_err("Non-contiguous tensor output"))?;
+        // Extract hidden states tensor — shape [batch, seq_len, 384]
+        let (_shape, h) = outputs[0]
+            .try_extract_tensor::<f32>()
+            .map_err(|e| internal_err(format!("Output extraction error: {}", e)))?;
+        h_data = h.to_vec();
+    }
 
     // Mean pooling with attention mask + L2 normalization
     let mut vectors = Vec::with_capacity(batch_size);
@@ -147,7 +148,7 @@ async fn embed(
             if attn_mask[i * seq_len + j] > 0 {
                 let base = (i * seq_len + j) * EMBEDDING_DIM;
                 for k in 0..EMBEDDING_DIM {
-                    emb[k] += h[base + k];
+                    emb[k] += h_data[base + k];
                 }
                 token_count += 1.0;
             }
@@ -207,7 +208,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         EMBEDDING_DIM, MAX_SEQ_LEN
     );
 
-    let state = Arc::new(AppState { session, tokenizer });
+    let state = Arc::new(AppState {
+        session: Mutex::new(session),
+        tokenizer,
+    });
 
     let app = Router::new()
         .route("/health", get(health))

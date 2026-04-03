@@ -7,7 +7,7 @@ RUN optimum-cli export onnx \
     /models/
 
 # ─── Stage 2: Build Rust binary ───
-FROM rust:1.78-bookworm AS builder
+FROM rust:1.88-bookworm AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends cmake pkg-config && \
     rm -rf /var/lib/apt/lists/*
 WORKDIR /build
@@ -20,18 +20,17 @@ RUN touch src/main.rs && cargo build --release
 # ─── Stage 3: Runtime ───
 FROM debian:bookworm-slim
 
-# Install ONNX Runtime (matches ort 2.0 load-dynamic)
-ENV ORT_VERSION=1.17.3
+# Install ONNX Runtime (matches ort 2.0.0-rc.12 which wraps ORT 1.24.2)
+ENV ORT_VERSION=1.24.2
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates wget libgomp1 && \
-    wget -q -O /tmp/ort.tgz \
+    ca-certificates curl libgomp1 && \
+    curl -fsSL -o /tmp/ort.tgz \
     "https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/onnxruntime-linux-x64-${ORT_VERSION}.tgz" && \
     tar xzf /tmp/ort.tgz -C /opt/ && \
     rm /tmp/ort.tgz && \
-    apt-get remove -y wget && apt-get autoremove -y && \
     rm -rf /var/lib/apt/lists/*
 
-ENV ORT_DYLIB_PATH=/opt/onnxruntime-linux-x64-1.17.3/lib/libonnxruntime.so
+ENV ORT_DYLIB_PATH=/opt/onnxruntime-linux-x64-1.24.2/lib/libonnxruntime.so
 
 COPY --from=model-prep /models/ /models/
 COPY --from=builder /build/target/release/embedding-server /usr/local/bin/
@@ -40,6 +39,6 @@ ENV MODEL_DIR=/models PORT=8000 RUST_LOG=info
 EXPOSE 8000
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
 CMD ["embedding-server"]
