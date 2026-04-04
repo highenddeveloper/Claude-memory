@@ -42,8 +42,6 @@ services:
       - MONITOR_URL=http://monitor:8001
       - N8N_URL=http://n8n:5678
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - GROQ_MODEL=${GROQ_MODEL:-llama-3.1-8b-instant}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - AGENT_MAX_CONCURRENCY=${AGENT_MAX_CONCURRENCY:-3}
       - AGENT_TIMEOUT_MS=${AGENT_TIMEOUT_MS:-300000}

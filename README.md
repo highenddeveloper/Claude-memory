@@ -1,6 +1,6 @@
 # AI Dashboard Platform
 
-Unified AI agent system. Single backend, single MCP server, single docker-compose. Dokploy-ready.
+Memory and operations dashboard backend for agent activity tracking. LLM execution is handled in the VS Code extension layer (Copilot/Claude), not in this backend.
 
 All open source. No paid tools.
 
@@ -55,7 +55,7 @@ Only backend:${BACKEND_HOST_PORT:-3101}->3001 and n8n:5678 are exposed externall
 ```
 ├── CLAUDE.md                      # AI agent instructions (read this first)
 ├── AGENTS.md                      # Agent types, memory arch, orchestration
-├── docker-compose.yml             # Single file — all 7 services
+├── docker-compose.yml             # Single file — core services + optional embedding profile
 ├── .env.example                   # Environment template
 ├── .mcp.json                      # MCP config for Claude Code
 │
@@ -180,7 +180,7 @@ Auth: `X-API-Key` header required for external requests.
 | `browse_multi` | Browse multiple URLs in parallel |
 | `store_memory` | Save info to long-term PostgreSQL memory |
 | `recall_memory` | Search memory for relevant past information |
-| `run_agent` | Launch autonomous agent (research/monitor/automation/memory) |
+| `run_agent` | Launch autonomous task (research/monitor/automation/memory) |
 | `agent_status` | Check if an agent task is done |
 | `trigger_workflow` | Fire an n8n webhook |
 | `system_health` | Check all service health |
@@ -246,12 +246,13 @@ Pattern: **cache-aside** — check cache → miss → fetch → store.
 ## Deployment (Dokploy)
 
 1. Push repo to GitHub
-2. In Dokploy: **New Project → Docker Compose**
-3. Connect GitHub repo
-4. Set environment variables from `.env.example`
+4. In Dokploy: **New Project → Docker Compose**
+5. Set environment variables from `.env.example`
+6. Configure backend domain (and optional n8n domain)
+7. Deploy
 5. Deploy
 
-Dokploy reads `docker-compose.yml` from root and deploys all 7 services.
+Dokploy reads `docker-compose.yml` from root and deploys core services. Embedding stays optional unless profile-enabled.
 
 ---
 
@@ -285,7 +286,7 @@ Dokploy reads `docker-compose.yml` from root and deploys all 7 services.
 3. **WebSocket streaming** — Real-time agent step updates to VS Code extension
 4. **SaaS mode** — Multi-tenant with per-user API keys and usage quotas
 5. **Horizontal scaling** — Docker Swarm or Kubernetes, stateless backend replicas
-6. **Local LLM** — Ollama integration as alternative to Claude API
+6. **Dashboard streaming** — live agent step updates in the dashboard
 
 ---
 

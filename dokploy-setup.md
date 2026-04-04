@@ -1,6 +1,6 @@
 # Dokploy Deployment Setup
 
-> Deploy the full AI Dashboard Platform to a VPS using [Dokploy](https://dokploy.com) — a self-hosted PaaS that manages Docker Compose apps via GitHub.
+> Deploy the Memory + Dashboard platform to a VPS using [Dokploy](https://dokploy.com). No backend LLM key is required.
 
 ---
 
@@ -78,6 +78,7 @@ BACKEND_HOST_PORT=3101
 
 Use a free host port for `BACKEND_HOST_PORT` if `3101` is already in use on your VPS.
 If `BACKEND_PORT` exists from older deployments in Dokploy, remove it to avoid confusion.
+If `GROQ_API_KEY` or `GROQ_MODEL` exists from older deployments, remove them (not used by backend).
 
 > **Security:** Generate strong random values for all secrets:
 > ```bash
@@ -86,7 +87,7 @@ If `BACKEND_PORT` exists from older deployments in Dokploy, remove it to avoid c
 
 ---
 
-## 5 — Configure Domains (Optional HTTPS)
+## 5 — Configure Domains (Recommended)
 
 All services run on the internal `ai-net` Docker network. Only expose what you need:
 
@@ -96,7 +97,14 @@ All services run on the internal `ai-net` Docker network. Only expose what you n
 | n8n | 5678 | Optional | `n8n.your-domain.com` |
 | All others | — | **No** | Internal only |
 
-In Dokploy → **Domains** → add `api.your-domain.com` → Traefik handles SSL via Let's Encrypt automatically.
+Domain setup flow in Dokploy:
+1. Open your project service in Dokploy.
+2. Go to **Domains**.
+3. Add `api.your-domain.com` to the backend service (port 3001 inside container).
+4. Add `n8n.your-domain.com` to n8n service only if you need external webhook/UI access.
+5. Enable HTTPS/Let's Encrypt and save.
+
+Traefik will terminate TLS automatically once DNS records point to your VPS.
 
 ---
 
@@ -109,9 +117,8 @@ In Dokploy → **Domains** → add `api.your-domain.com` → Traefik handles SSL
 
 Dokploy runs `docker compose up -d --build` on the VPS.
 
-**First deploy takes ~10–15 minutes** — the Rust embedding server build downloads `all-MiniLM-L6-v2` and compiles the binary.
-
-Subsequent deploys use Docker layer cache and finish in ~2–3 minutes.
+Default deployment is memory/dashboard focused and does not start the optional embedding profile.
+Typical deploy time is ~2–4 minutes after image caching.
 
 ---
 
@@ -131,7 +138,7 @@ go run main.go health
 # postgres  ok      12ms
 # valkey    ok      2ms
 # qdrant    ok      8ms
-# embedding ok      45ms
+# embedding error   optional (expected if profile disabled)
 ```
 
 Or via curl:
@@ -160,7 +167,7 @@ Every `git push origin main` will now trigger a redeploy automatically.
 | Service | RAM | CPU | Notes |
 |---------|-----|-----|-------|
 | backend | 512 MB | 1 core | Node.js API |
-| embedding | 1 GB | 1 core | Rust + ONNX model |
+| embedding (optional profile) | 1 GB | 1 core | Rust + ONNX model |
 | postgres | 512 MB | 1 core | Persistent storage |
 | qdrant | 512 MB | 0.5 core | Vector DB |
 | browserless | 1 GB | 1 core | Chromium |
@@ -168,7 +175,8 @@ Every `git push origin main` will now trigger a redeploy automatically.
 | valkey | 300 MB | 0.5 core | Cache |
 | n8n | 512 MB | 0.5 core | Workflow engine |
 | monitor | 64 MB | 0.25 core | Go health monitor |
-| **Total** | **~4.7 GB** | **~6 cores** | |
+| **Total (without embedding)** | **~3.7 GB** | **~5 cores** | |
+| **Total (with embedding)** | **~4.7 GB** | **~6 cores** | |
 
 **Recommended VPS:** 8 GB RAM, 4 vCPU (e.g., Hetzner CX31 ~€10/mo, DigitalOcean 8GB Droplet ~$48/mo)
 
@@ -177,10 +185,10 @@ Every `git push origin main` will now trigger a redeploy automatically.
 ## Troubleshooting
 
 ### Embedding server takes too long to start
-The first start downloads and exports the ONNX model. Normal — allow 5 minutes.
+This only applies if you explicitly enable the embedding profile. First start can take several minutes.
 
 ```bash
-docker logs ai-embedding --follow
+docker compose logs -f embedding
 ```
 
 ### Backend reports `embedding: error` in /health

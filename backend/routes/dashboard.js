@@ -14,148 +14,282 @@ function getDashboardHtml(apiBase) {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Dashboard</title>
+  <title>Memory Operations Dashboard</title>
   <style>
     :root {
-      --bg: #0d1117;
-      --fg: #c9d1d9;
-      --border: #30363d;
-      --input-bg: #161b22;
-      --input-fg: #c9d1d9;
-      --btn-bg: #238636;
-      --btn-fg: #ffffff;
-      --btn-hover: #2ea043;
-      --btn-sec-bg: #21262d;
-      --btn-sec-fg: #c9d1d9;
-      --focus: #58a6ff;
-      --quote-bg: #161b22;
-      --hover-bg: #161b22;
-      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      --card-bg: #161b22;
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --text: #17202a;
+      --muted: #5f6b7a;
+      --line: #dde3ea;
+      --ok: #137333;
+      --warn: #b76e00;
+      --err: #c5221f;
+      --accent: #0b57d0;
+      --accent-2: #0842a0;
+      --radius: 10px;
+      --shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: var(--font); padding: 24px; color: var(--fg); background: var(--bg); line-height: 1.5; max-width: 1200px; margin: 0 auto; }
-    h1 { font-size: 1.6em; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-    h1::before { content: '🤖'; }
-    .tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
-    .tab { padding: 10px 18px; cursor: pointer; border: none; background: transparent; color: var(--fg); font-size: 13px; opacity: 0.6; border-bottom: 2px solid transparent; transition: all 0.2s; }
-    .tab:hover { opacity: 1; background: var(--hover-bg); }
-    .tab.active { opacity: 1; border-bottom-color: var(--focus); color: var(--focus); }
-    .panel { display: none; }
-    .panel.active { display: block; }
-    .section { margin-bottom: 24px; }
-    .section h2 { font-size: 1.1em; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
-    input, select, button, textarea { font-family: inherit; font-size: 13px; padding: 8px 14px; border-radius: 6px; border: 1px solid var(--border); background: var(--input-bg); color: var(--input-fg); transition: border-color 0.2s; }
-    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--focus); }
-    button { background: var(--btn-bg); color: var(--btn-fg); border: none; cursor: pointer; white-space: nowrap; font-weight: 500; }
-    button:hover { background: var(--btn-hover); }
-    button.secondary { background: var(--btn-sec-bg); color: var(--btn-sec-fg); }
-    button.secondary:hover { border-color: var(--focus); }
-    input, textarea { width: 100%; }
-    select { min-width: 140px; }
-    pre { background: var(--quote-bg); padding: 14px; border-radius: 8px; overflow-x: auto; font-size: 12px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; margin-top: 10px; border: 1px solid var(--border); }
-    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
-    .badge.ok, .badge.completed { background: #2ea04333; color: #3fb950; }
-    .badge.healthy { background: #2ea04333; color: #3fb950; }
-    .badge.error, .badge.failed { background: #f8514933; color: #f85149; }
-    .badge.pending, .badge.planning { background: #848d9733; color: #8b949e; }
-    .badge.executing { background: #a371f733; color: #bc8cff; }
-    .badge.degraded { background: #d2992233; color: #d29922; }
-    .task-list { list-style: none; }
-    .task-item { padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
-    .task-item:hover { background: var(--hover-bg); border-color: var(--focus); }
-    .task-meta { font-size: 11px; opacity: 0.6; }
-    .loader { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--fg); border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    .empty { opacity: 0.5; font-style: italic; padding: 14px; }
-    .connection-status { font-size: 12px; margin-left: auto; }
-    .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 12px; }
-    .health-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
-    .health-card h3 { font-size: 13px; text-transform: capitalize; margin-bottom: 6px; }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.2;
+    }
+
+    .sub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .status {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #e8f0fe;
+      color: #174ea6;
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .card h2 {
+      margin: 0 0 10px 0;
+      font-size: 16px;
+    }
+
+    .col-12 { grid-column: span 12; }
+    .col-8 { grid-column: span 8; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+
+    @media (max-width: 960px) {
+      .col-8, .col-6, .col-4 { grid-column: span 12; }
+      .header { flex-direction: column; align-items: flex-start; }
+    }
+
+    .row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+
+    input, select, textarea, button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 9px 10px;
+      background: #fff;
+      color: var(--text);
+    }
+
+    input, select, textarea { width: 100%; }
+
+    textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+    .grow { flex: 1; }
+
+    button {
+      width: auto;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+
+    button:hover { background: var(--accent-2); }
+
+    button.secondary {
+      background: #eef3fd;
+      color: #234b99;
+      border: 1px solid #d5e1fb;
+    }
+
+    button.secondary:hover {
+      background: #e3ecfb;
+    }
+
+    .badge {
+      display: inline-block;
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      text-transform: lowercase;
+    }
+
+    .ok { background: #e6f4ea; color: var(--ok); }
+    .healthy { background: #e6f4ea; color: var(--ok); }
+    .degraded { background: #fff4e5; color: var(--warn); }
+    .error, .failed { background: #fce8e6; color: var(--err); }
+    .pending, .planning, .executing { background: #e8f0fe; color: #174ea6; }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 760px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fbfcfe;
+    }
+
+    .kpi .name { font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: capitalize; }
+
+    .task-list {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      max-height: 290px;
+      overflow-y: auto;
+      background: #fff;
+    }
+
+    .task-item {
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .task-item:last-child { border-bottom: none; }
+    .task-item:hover { background: #f8fbff; }
+
+    .task-meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    pre {
+      margin: 10px 0 0;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #0f172a;
+      color: #e2e8f0;
+      max-height: 300px;
+      overflow: auto;
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .muted { color: var(--muted); font-size: 13px; }
   </style>
 </head>
 <body>
-  <h1>
-    AI Dashboard
-    <span class="connection-status" id="connectionStatus">
-      <span class="badge pending">Connecting...</span>
-    </span>
-  </h1>
-
-  <div class="tabs">
-    <button class="tab active" data-panel="agents" data-testid="tab-agents">Agents</button>
-    <button class="tab" data-panel="search" data-testid="tab-search">Search</button>
-    <button class="tab" data-panel="browse" data-testid="tab-browse">Browse</button>
-    <button class="tab" data-panel="memory" data-testid="tab-memory">Memory</button>
-    <button class="tab" data-panel="system" data-testid="tab-system">System</button>
-  </div>
-
-  <!-- Agents Panel -->
-  <div id="agents" class="panel active" data-testid="panel-agents">
-    <div class="section">
-      <h2>Run Agent</h2>
-      <div class="row">
-        <select id="agentType" data-testid="agent-type">
-          <option value="research">Research</option>
-          <option value="monitor">Monitor</option>
-          <option value="automation">Automation</option>
-          <option value="memory">Memory</option>
-        </select>
-        <input id="agentInput" placeholder="Task description..." style="flex:1" data-testid="agent-input" />
-        <button id="agentBtn" data-testid="agent-run-btn">Run</button>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>Memory Operations Dashboard</h1>
+        <div class="sub">Simple view: run tasks, track progress, and manage memory.</div>
       </div>
-      <pre id="agentResult" style="display:none" data-testid="agent-result"></pre>
+      <div id="connection-status" class="status" data-testid="connection-status">Checking...</div>
     </div>
-    <div class="section">
-      <h2>Recent Tasks <button class="secondary" id="refreshTasks" style="font-size:11px;padding:4px 10px;margin-left:8px;" data-testid="refresh-tasks-btn">Refresh</button></h2>
-      <ul class="task-list" id="taskList" data-testid="task-list"><li class="empty">Click Refresh to load tasks</li></ul>
-    </div>
-    <pre id="taskDetail" style="display:none" data-testid="task-detail"></pre>
-  </div>
 
-  <!-- Search Panel -->
-  <div id="search" class="panel" data-testid="panel-search">
-    <div class="section">
-      <h2>Web Search</h2>
-      <div class="row">
-        <input id="searchInput" placeholder="Search query..." style="flex:1" data-testid="search-input" />
-        <button id="searchBtn" data-testid="search-btn">Search</button>
-      </div>
-      <pre id="searchResult" style="display:none" data-testid="search-result"></pre>
-    </div>
-  </div>
+    <div class="grid">
+      <section class="card col-12">
+        <h2>System Health</h2>
+        <div class="row">
+          <button id="health-refresh" class="secondary" data-testid="health-refresh-btn">Refresh Health</button>
+          <span id="health-summary" class="muted">Waiting for data...</span>
+        </div>
+        <div id="health-grid" class="kpi-grid" data-testid="health-grid"></div>
+      </section>
 
-  <!-- Browse Panel -->
-  <div id="browse" class="panel" data-testid="panel-browse">
-    <div class="section">
-      <h2>Browse URL</h2>
-      <div class="row">
-        <input id="browseInput" placeholder="https://example.com" style="flex:1" data-testid="browse-input" />
-        <button id="browseBtn" data-testid="browse-btn">Browse</button>
-      </div>
-      <pre id="browseResult" style="display:none" data-testid="browse-result"></pre>
-    </div>
-  </div>
+      <section class="card col-8">
+        <h2>Agent Tasks</h2>
+        <div class="row">
+          <select id="task-type" data-testid="task-type">
+            <option value="research">Research</option>
+            <option value="monitor">Monitor</option>
+            <option value="automation">Automation</option>
+            <option value="memory">Memory</option>
+          </select>
+          <input id="task-input" class="grow" data-testid="task-input" placeholder="Task input (query, URL, or webhook:payload)" />
+          <button id="task-run" data-testid="task-run-btn">Run</button>
+          <button id="task-refresh" class="secondary" data-testid="task-refresh-btn">Refresh</button>
+        </div>
+        <div id="task-list" class="task-list" data-testid="task-list"></div>
+        <pre id="task-detail" style="display:none" data-testid="task-detail"></pre>
+      </section>
 
-  <!-- Memory Panel -->
-  <div id="memory" class="panel" data-testid="panel-memory">
-    <div class="section">
-      <h2>Search Memory</h2>
-      <div class="row">
-        <input id="memoryInput" placeholder="Search stored memories..." style="flex:1" data-testid="memory-input" />
-        <button id="memoryBtn" data-testid="memory-btn">Search</button>
-      </div>
-      <pre id="memoryResult" style="display:none" data-testid="memory-result"></pre>
-    </div>
-  </div>
+      <section class="card col-4">
+        <h2>Quick Memory Search</h2>
+        <div class="row">
+          <input id="memory-search-input" data-testid="memory-search-input" placeholder="Search memory..." />
+        </div>
+        <div class="row">
+          <button id="memory-search-btn" data-testid="memory-search-btn">Search</button>
+        </div>
+        <pre id="memory-search-result" style="display:none" data-testid="memory-search-result"></pre>
+      </section>
 
-  <!-- System Panel -->
-  <div id="system" class="panel" data-testid="panel-system">
-    <div class="section">
-      <h2>Health Check</h2>
-      <button id="healthBtn" data-testid="health-btn">Check Health</button>
-      <div id="healthResult" style="margin-top:12px" data-testid="health-result"></div>
+      <section class="card col-12">
+        <h2>Store Memory</h2>
+        <div class="row">
+          <input id="memory-summary" data-testid="memory-summary" placeholder="Summary (optional)" />
+        </div>
+        <div class="row">
+          <textarea id="memory-content" data-testid="memory-content" placeholder="Content to store..."></textarea>
+        </div>
+        <div class="row">
+          <button id="memory-store-btn" data-testid="memory-store-btn">Save Memory</button>
+        </div>
+        <pre id="memory-store-result" style="display:none" data-testid="memory-store-result"></pre>
+      </section>
     </div>
   </div>
 
@@ -164,159 +298,127 @@ function getDashboardHtml(apiBase) {
 
     async function apiFetch(path, options = {}) {
       const headers = { 'Content-Type': 'application/json' };
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
-        const res = await fetch(API_BASE + path, {
-          headers,
-          signal: controller.signal,
-          ...options,
-        });
+        const res = await fetch(API_BASE + path, { ...options, headers, signal: controller.signal });
+        const data = await res.json();
         clearTimeout(timeout);
-        return res.json();
+        return data;
       } catch (err) {
+        clearTimeout(timeout);
         return { success: false, error: err.name === 'AbortError' ? 'Request timed out' : err.message };
       }
     }
 
-    // Connection check
-    async function checkConnection() {
-      const el = document.getElementById('connectionStatus');
-      try {
-        const data = await apiFetch('/health');
-        if (data.data && data.data.checks) {
-          el.innerHTML = data.data.status === 'healthy'
-            ? '<span class="badge ok">Connected</span>'
-            : '<span class="badge degraded">Degraded</span>';
-        } else {
-          el.innerHTML = '<span class="badge degraded">Degraded</span>';
-        }
-      } catch {
-        el.innerHTML = '<span class="badge error">Disconnected</span>';
-      }
-    }
-    checkConnection();
-    setInterval(checkConnection, 30000);
-
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(tab.dataset.panel).classList.add('active');
-      });
-    });
-
-    function showResult(el, data) {
+    function showJson(el, data) {
       el.style.display = 'block';
       el.textContent = JSON.stringify(data, null, 2);
     }
 
-    // Agents
-    document.getElementById('agentBtn').addEventListener('click', async () => {
-      const type = document.getElementById('agentType').value;
-      const input = document.getElementById('agentInput').value.trim();
-      if (!input) return;
-      const el = document.getElementById('agentResult');
-      el.style.display = 'block';
-      el.innerHTML = '<span class="loader"></span> Running...';
-      const data = await apiFetch('/agent/run', { method: 'POST', body: JSON.stringify({ type, input }) });
-      showResult(el, data);
-    });
+    function statusBadge(value) {
+      const cls = String(value || 'unknown').toLowerCase();
+      return '<span class="badge ' + cls + '">' + cls + '</span>';
+    }
 
-    document.getElementById('refreshTasks').addEventListener('click', async () => {
-      const data = await apiFetch('/agent/tasks?limit=20');
-      renderTasks(data);
-    });
+    async function refreshHealth() {
+      const data = await apiFetch('/health');
+      const statusEl = document.getElementById('connection-status');
+      const summaryEl = document.getElementById('health-summary');
+      const gridEl = document.getElementById('health-grid');
 
-    function renderTasks(data) {
-      const list = document.getElementById('taskList');
-      if (data.success && data.data && data.data.length) {
-        list.innerHTML = data.data.map(t =>
-          '<li class="task-item" data-id="' + t.id + '">'
-          + '<div><span class="badge ' + t.status + '">' + t.status + '</span> '
-          + '<strong>' + t.type + '</strong></div>'
-          + '<span class="task-meta">' + new Date(t.created_at).toLocaleString() + '</span>'
-          + '</li>'
-        ).join('');
-        list.querySelectorAll('.task-item').forEach(item => {
-          item.addEventListener('click', async () => {
-            const data = await apiFetch('/agent/status/' + item.dataset.id);
-            showResult(document.getElementById('taskDetail'), data);
-          });
+      if (!data.success || !data.data || !data.data.checks) {
+        statusEl.textContent = 'Disconnected';
+        summaryEl.textContent = data.error || 'Health check failed';
+        gridEl.innerHTML = '';
+        return;
+      }
+
+      const checks = data.data.checks;
+      const overall = data.data.status;
+      statusEl.textContent = overall === 'healthy' ? 'Connected' : 'Degraded';
+      summaryEl.innerHTML = 'Status: ' + statusBadge(overall) + ' | Uptime: ' + Math.round(data.data.uptime) + 's';
+      gridEl.innerHTML = Object.entries(checks).map(([k, v]) =>
+        '<div class="kpi"><div class="name">' + k + '</div><div>' + statusBadge(v) + '</div></div>'
+      ).join('');
+    }
+
+    async function refreshTasks() {
+      const listEl = document.getElementById('task-list');
+      const data = await apiFetch('/agent/tasks?limit=25');
+
+      if (!data.success || !Array.isArray(data.data) || data.data.length === 0) {
+        listEl.innerHTML = '<div class="task-item"><span class="muted">No tasks yet</span></div>';
+        return;
+      }
+
+      listEl.innerHTML = data.data.map((task) => {
+        return '<div class="task-item" data-id="' + task.id + '">'
+          + '<div><strong>' + task.type + '</strong><div class="task-meta">' + new Date(task.created_at).toLocaleString() + '</div></div>'
+          + statusBadge(task.status)
+          + '</div>';
+      }).join('');
+
+      listEl.querySelectorAll('.task-item[data-id]').forEach((row) => {
+        row.addEventListener('click', async () => {
+          const details = await apiFetch('/agent/status/' + row.dataset.id);
+          showJson(document.getElementById('task-detail'), details);
         });
-      } else {
-        list.innerHTML = '<li class="empty">No tasks found</li>';
+      });
+    }
+
+    async function runTask() {
+      const type = document.getElementById('task-type').value;
+      const input = document.getElementById('task-input').value.trim();
+      if (!input) return;
+
+      const detail = document.getElementById('task-detail');
+      detail.style.display = 'block';
+      detail.textContent = 'Starting task...';
+
+      const data = await apiFetch('/agent/run', {
+        method: 'POST',
+        body: JSON.stringify({ type, input }),
+      });
+
+      showJson(detail, data);
+      await refreshTasks();
+    }
+
+    async function searchMemory() {
+      const q = document.getElementById('memory-search-input').value.trim();
+      if (!q) return;
+      const data = await apiFetch('/memory/search?q=' + encodeURIComponent(q));
+      showJson(document.getElementById('memory-search-result'), data);
+    }
+
+    async function storeMemory() {
+      const content = document.getElementById('memory-content').value.trim();
+      const summary = document.getElementById('memory-summary').value.trim();
+      if (!content) return;
+
+      const data = await apiFetch('/memory', {
+        method: 'POST',
+        body: JSON.stringify({ content, summary: summary || undefined }),
+      });
+
+      showJson(document.getElementById('memory-store-result'), data);
+      if (data.success) {
+        document.getElementById('memory-content').value = '';
+        document.getElementById('memory-summary').value = '';
       }
     }
 
-    // Search
-    document.getElementById('searchBtn').addEventListener('click', async () => {
-      const q = document.getElementById('searchInput').value.trim();
-      if (!q) return;
-      const el = document.getElementById('searchResult');
-      el.style.display = 'block';
-      el.innerHTML = '<span class="loader"></span> Searching...';
-      const data = await apiFetch('/search', { method: 'POST', body: JSON.stringify({ query: q }) });
-      if (data.success && data.data && data.data.results) {
-        const items = data.data.results.map(r =>
-          '\\u2022 ' + r.title + '\\n  ' + r.url + '\\n  ' + (r.snippet || '').slice(0, 120)
-        ).join('\\n\\n');
-        el.style.display = 'block';
-        el.textContent = items || 'No results found';
-      } else {
-        showResult(el, data);
-      }
-    });
+    document.getElementById('health-refresh').addEventListener('click', refreshHealth);
+    document.getElementById('task-refresh').addEventListener('click', refreshTasks);
+    document.getElementById('task-run').addEventListener('click', runTask);
+    document.getElementById('memory-search-btn').addEventListener('click', searchMemory);
+    document.getElementById('memory-store-btn').addEventListener('click', storeMemory);
 
-    // Browse
-    document.getElementById('browseBtn').addEventListener('click', async () => {
-      const url = document.getElementById('browseInput').value.trim();
-      if (!url) return;
-      const el = document.getElementById('browseResult');
-      el.style.display = 'block';
-      el.innerHTML = '<span class="loader"></span> Browsing...';
-      const data = await apiFetch('/browse', { method: 'POST', body: JSON.stringify({ url }) });
-      if (data.success && data.data && data.data.text) {
-        el.style.display = 'block';
-        el.textContent = data.data.text.slice(0, 10000);
-      } else {
-        showResult(el, data);
-      }
-    });
-
-    // Memory
-    document.getElementById('memoryBtn').addEventListener('click', async () => {
-      const q = document.getElementById('memoryInput').value.trim();
-      if (!q) return;
-      const el = document.getElementById('memoryResult');
-      el.style.display = 'block';
-      el.innerHTML = '<span class="loader"></span> Searching memory...';
-      const data = await apiFetch('/memory/search?q=' + encodeURIComponent(q));
-      showResult(el, data);
-    });
-
-    // Health
-    document.getElementById('healthBtn').addEventListener('click', async () => {
-      const data = await apiFetch('/health');
-      const el = document.getElementById('healthResult');
-      if (data.data && data.data.checks) {
-        let html = '<div class="health-grid">';
-        Object.entries(data.data.checks).forEach(([k, v]) => {
-          html += '<div class="health-card"><h3>' + k + '</h3><span class="badge ' + v + '">' + v + '</span></div>';
-        });
-        html += '</div>';
-        html += '<p style="margin-top:12px"><span class="badge ' + data.data.status + '">'
-          + data.data.status + '</span> <span class="task-meta">Uptime: ' + Math.round(data.data.uptime) + 's</span></p>';
-        el.innerHTML = html;
-      } else {
-        el.innerHTML = '<span class="badge error">Error</span> ' + (data.error || '');
-      }
-    });
-
-    // Auto-load tasks
-    setTimeout(() => document.getElementById('refreshTasks').click(), 1000);
+    refreshHealth();
+    refreshTasks();
+    setInterval(refreshHealth, 30000);
+    setInterval(refreshTasks, 15000);
   </script>
 </body>
 </html>`;

@@ -3,7 +3,6 @@ import config from '../config.js';
 import { getPool } from '../services/postgres.js';
 import { getClient } from '../services/valkey.js';
 import { embeddingHealth } from '../services/embedding.js';
-import { llmHealth, isLLMConfigured } from '../services/llm.js';
 
 const router = Router();
 
@@ -41,15 +40,7 @@ router.get('/', async (req, res) => {
   // Rust embedding server
   checks.embedding = (await embeddingHealth()) ? 'ok' : 'error';
 
-  // Groq LLM
-  if (isLLMConfigured()) {
-    const groqStatus = await llmHealth();
-    checks.llm = groqStatus.ok ? 'ok' : 'error';
-  } else {
-    checks.llm = 'not_configured';
-  }
-
-  // Core services required for healthy status (llm and embedding are optional)
+  // Core services required for healthy status (embedding is optional)
   const coreChecks = ['postgres', 'valkey', 'qdrant'];
   const allOk = coreChecks.every((k) => checks[k] === 'ok');
 
