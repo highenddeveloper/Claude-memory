@@ -24,8 +24,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
+    # Host port defaults to 3101 to reduce collisions on shared hosts
     ports:
-      - "${BACKEND_PORT:-3001}:3001"
+      - "${BACKEND_PORT:-3101}:3001"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3001

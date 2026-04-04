@@ -73,8 +73,10 @@ AGENT_MAX_CONCURRENCY=3
 AGENT_TIMEOUT_MS=300000
 LOG_LEVEL=info
 NODE_ENV=production
-BACKEND_PORT=3001
+BACKEND_PORT=3101
 ```
+
+Use a free host port for `BACKEND_PORT` if `3101` is already in use on your VPS.
 
 > **Security:** Generate strong random values for all secrets:
 > ```bash

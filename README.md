@@ -45,7 +45,7 @@ All open source. No paid tools.
                               └──────────┘
 
 All services on internal Docker network (ai-net).
-Only backend:3001 and n8n:5678 exposed externally.
+Only backend:${BACKEND_PORT:-3101}->3001 and n8n:5678 are exposed externally.
 ```
 
 ---
@@ -139,7 +139,7 @@ docker-compose up -d
 ### 3. Verify
 
 ```bash
-curl http://localhost:3001/health
+curl http://localhost:3101/health
 ```
 
 ### 4. Connect Claude Code
@@ -212,7 +212,7 @@ Auth: `X-API-Key` header required for external requests.
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 
-External access: backend:3001, n8n:5678 only
+External access: backend:${BACKEND_PORT:-3101}->3001, n8n:5678 only
 Internal services: NO host port bindings
 ```
 
