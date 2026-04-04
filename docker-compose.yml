@@ -24,9 +24,10 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     restart: unless-stopped
-    # Host port defaults to 3101 to reduce collisions on shared hosts
+    # Host port defaults to 3101 to reduce collisions on shared hosts.
+    # Uses BACKEND_HOST_PORT so stale BACKEND_PORT values in Dokploy do not force 3001.
     ports:
-      - "${BACKEND_PORT:-3101}:3001"
+      - "${BACKEND_HOST_PORT:-3101}:3001"
     environment:
       - NODE_ENV=${NODE_ENV:-production}
       - PORT=3001

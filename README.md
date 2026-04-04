@@ -45,7 +45,7 @@ All open source. No paid tools.
                               └──────────┘
 
 All services on internal Docker network (ai-net).
-Only backend:${BACKEND_PORT:-3101}->3001 and n8n:5678 are exposed externally.
+Only backend:${BACKEND_HOST_PORT:-3101}->3001 and n8n:5678 are exposed externally.
 ```
 
 ---
@@ -212,7 +212,7 @@ Auth: `X-API-Key` header required for external requests.
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 
-External access: backend:${BACKEND_PORT:-3101}->3001, n8n:5678 only
+External access: backend:${BACKEND_HOST_PORT:-3101}->3001, n8n:5678 only
 Internal services: NO host port bindings
 ```
 

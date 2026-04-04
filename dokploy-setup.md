@@ -73,10 +73,11 @@ AGENT_MAX_CONCURRENCY=3
 AGENT_TIMEOUT_MS=300000
 LOG_LEVEL=info
 NODE_ENV=production
-BACKEND_PORT=3101
+BACKEND_HOST_PORT=3101
 ```
 
-Use a free host port for `BACKEND_PORT` if `3101` is already in use on your VPS.
+Use a free host port for `BACKEND_HOST_PORT` if `3101` is already in use on your VPS.
+If `BACKEND_PORT` exists from older deployments in Dokploy, remove it to avoid confusion.
 
 > **Security:** Generate strong random values for all secrets:
 > ```bash
