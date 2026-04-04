@@ -3,12 +3,11 @@ import { Router } from 'express';
 const router = Router();
 
 router.get('/', (req, res) => {
-  const apiBase = `${req.protocol}://${req.get('host')}`;
   res.setHeader('Content-Type', 'text/html');
-  res.send(getDashboardHtml(apiBase));
+  res.send(getDashboardHtml());
 });
 
-function getDashboardHtml(apiBase) {
+function getDashboardHtml() {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -294,7 +293,9 @@ function getDashboardHtml(apiBase) {
   </div>
 
   <script>
-    const API_BASE = '${apiBase}';
+    // Use same-origin relative paths so this works behind Dokploy/Traefik
+    // regardless of http/https termination at the proxy.
+    const API_BASE = '';
 
     async function apiFetch(path, options = {}) {
       const headers = { 'Content-Type': 'application/json' };
@@ -327,9 +328,9 @@ function getDashboardHtml(apiBase) {
       const summaryEl = document.getElementById('health-summary');
       const gridEl = document.getElementById('health-grid');
 
-      if (!data.success || !data.data || !data.data.checks) {
+      if (!data.data || !data.data.checks) {
         statusEl.textContent = 'Disconnected';
-        summaryEl.textContent = data.error || 'Health check failed';
+        summaryEl.textContent = data.error || 'Load failed';
         gridEl.innerHTML = '';
         return;
       }
