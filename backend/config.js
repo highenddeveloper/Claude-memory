@@ -50,6 +50,12 @@ export default {
     url: env.MONITOR_URL || 'http://localhost:8001',
   },
 
+  llm: {
+    groqApiKey: env.GROQ_API_KEY || '',
+    model: env.GROQ_MODEL || 'llama-3.1-8b-instant',
+    maxTokens: 2048,
+  },
+
   agent: {
     maxConcurrency: parseInt(env.AGENT_MAX_CONCURRENCY || '3', 10),
     timeoutMs: parseInt(env.AGENT_TIMEOUT_MS || '300000', 10),

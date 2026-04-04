@@ -7,6 +7,7 @@ import { search } from '../services/searxng.js';
 import { browse, browseParallel } from '../services/browserless.js';
 import { triggerWebhook } from '../services/n8n.js';
 import { embedSingle } from '../services/embedding.js';
+import { summarizeResearch, answer, isLLMConfigured } from '../services/llm.js';
 
 const logger = pino({ level: config.logLevel });
 
@@ -15,6 +16,7 @@ const AGENT_CONFIGS = {
   monitor: { maxSteps: 6, timeout: 120000 },
   automation: { maxSteps: 5, timeout: 180000 },
   memory: { maxSteps: 4, timeout: 30000 },
+  chat: { maxSteps: 3, timeout: 60000 },
 };
 
 // ─── Concurrency: DB-based, survives restarts ───
@@ -111,6 +113,7 @@ async function executeAgent(taskId, type, input, agentConfig) {
       monitor: executeMonitor,
       automation: executeAutomation,
       memory: executeMemoryAgent,
+      chat: executeChatAgent,
     };
 
     const executor = executors[type];
@@ -220,6 +223,24 @@ async function executeResearch(taskId, input, steps, deadline, agentConfig) {
       { maxRetries: config.agent.maxRetries, label: 'store_memory' }
     );
   });
+
+  if (pastDeadline(deadline)) return;
+
+  // Step 4: LLM summarization (best-effort, only if Groq is configured)
+  if (isLLMConfigured()) {
+    const browseText = (browseOutput?.pages || [])
+      .filter((p) => p.success && p.text)
+      .map((p) => p.text)
+      .join('\n\n')
+      .slice(0, 15000);
+
+    if (browseText) {
+      await runStep(steps, 'summarize', { topic: input }, deadline, async () => {
+        const summary = await summarizeResearch(browseText, input);
+        return summary ? { summary, model: config.llm.model } : { note: 'LLM summarization skipped' };
+      });
+    }
+  }
 }
 
 // ─── Monitor Agent: browse → diff → store snapshot ───
@@ -346,6 +367,37 @@ async function executeMemoryAgent(taskId, input, steps, deadline) {
       .sort((a, b) => b.similarity - a.similarity);
 
     return { entries, count: entries.length };
+  });
+}
+
+// ─── Chat Agent: direct LLM answer with optional memory context ───
+
+async function executeChatAgent(taskId, input, steps, deadline) {
+  // Step 1: Recall relevant memory for context
+  let context = '';
+  const memStep = await runStep(steps, 'recall_context', { query: input }, deadline, async () => {
+    const result = await query(
+      `SELECT content, summary FROM memory_entries
+       WHERE to_tsvector('english', coalesce(content, '') || ' ' || coalesce(summary, ''))
+             @@ websearch_to_tsquery('english', $1)
+       ORDER BY created_at DESC LIMIT 3`,
+      [input]
+    );
+    return { entries: result.rows, count: result.rows.length };
+  });
+
+  if (memStep?.entries?.length) {
+    context = memStep.entries.map((e) => e.summary || e.content).join('\n\n');
+  }
+
+  // Step 2: Answer with Groq (required for chat type)
+  await runStep(steps, 'llm_answer', { question: input }, deadline, async () => {
+    if (!isLLMConfigured()) {
+      throw new Error('GROQ_API_KEY not configured. Set it in your environment variables.');
+    }
+    const response = await answer(input, context);
+    if (!response) throw new Error('LLM returned empty response');
+    return { answer: response, model: config.llm.model, hadContext: Boolean(context) };
   });
 }
 

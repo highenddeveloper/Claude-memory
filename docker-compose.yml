@@ -23,7 +23,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ai-backend
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-3001}:3001"
@@ -41,6 +40,8 @@ services:
       - MONITOR_URL=http://monitor:8001
       - N8N_URL=http://n8n:5678
       - N8N_WEBHOOK_URL=http://n8n:5678/webhook
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-llama-3.1-8b-instant}
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - AGENT_MAX_CONCURRENCY=${AGENT_MAX_CONCURRENCY:-3}
       - AGENT_TIMEOUT_MS=${AGENT_TIMEOUT_MS:-300000}
@@ -53,9 +54,6 @@ services:
         condition: service_started
       browserless:
         condition: service_started
-      embedding:
-        condition: service_started
-        required: false
       qdrant:
         condition: service_healthy
     networks:
@@ -77,7 +75,6 @@ services:
   # ─────────────────────────────────────────────
   searxng:
     image: searxng/searxng:2026.4.1-bab3879cb
-    container_name: ai-searxng
     restart: unless-stopped
     volumes:
       - searxng-data:/etc/searxng
@@ -100,7 +97,6 @@ services:
   # ─────────────────────────────────────────────
   browserless:
     image: ghcr.io/browserless/chromium:v2.46.0
-    container_name: ai-browserless
     restart: unless-stopped
     environment:
       - TOKEN=${BROWSERLESS_TOKEN:-browserless-token}
@@ -122,7 +118,6 @@ services:
   # ─────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: ai-postgres
     restart: unless-stopped
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-ai}
@@ -150,7 +145,6 @@ services:
   # ─────────────────────────────────────────────
   valkey:
     image: valkey/valkey:8.1-alpine
-    container_name: ai-valkey
     restart: unless-stopped
     command: >
       valkey-server
@@ -179,7 +173,6 @@ services:
   # ─────────────────────────────────────────────
   qdrant:
     image: qdrant/qdrant:v1.17.1
-    container_name: ai-qdrant
     restart: unless-stopped
     volumes:
       - qdrant-data:/qdrant/storage
@@ -205,7 +198,6 @@ services:
   # ─────────────────────────────────────────────
   n8n:
     image: n8nio/n8n:1.123.28
-    container_name: ai-n8n
     restart: unless-stopped
     environment:
       - N8N_HOST=0.0.0.0
@@ -239,7 +231,7 @@ services:
     build:
       context: ./services/embedding
       dockerfile: Dockerfile
-    container_name: ai-embedding
+    profiles: [embedding]
     restart: unless-stopped
     volumes:
       - embedding-models:/models
@@ -269,7 +261,6 @@ services:
     build:
       context: ./services/monitor
       dockerfile: Dockerfile
-    container_name: ai-monitor
     restart: unless-stopped
     environment:
       - PORT=8001
